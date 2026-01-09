@@ -16,6 +16,7 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Services;
 using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.Entities;
 
 namespace Emby.Plugin.AudioMuseAi.Api
 {
@@ -211,126 +212,245 @@ namespace Emby.Plugin.AudioMuseAi.Api
             }
         }
 
-        public async Task<object> Get(GetAudioMuseInstantMix request)
+        private List<Audio> GetSongs(BaseItem item, User? user)
         {
-            _logger.Info("AudioMuseAI: Intercepted Instant Mix request for Item {0} (UserId: {1}, Limit: {2})", request.Id, request.UserId, request.Limit);
-            Console.WriteLine($"AudioMuseAI: Intercepted Instant Mix request for Item {request.Id} (Console).");
-
-            var response = await _audioMuseService.GetSimilarTracksAsync(request.Id, null, null, request.Limit ?? 50, null, CancellationToken.None).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
+            var query = new InternalItemsQuery
             {
-                 _logger.Error("AudioMuseAI: Failed to get similar tracks. Status: {0}", response.StatusCode);
-                 Console.WriteLine($"AudioMuseAI: Failed to get similar tracks. Status: {response.StatusCode}");
-                 return new QueryResult<BaseItemDto>();
+                User = user,
+                IncludeItemTypes = new[] { "Audio" },
+                Recursive = true
+            };
+
+            if (item is MusicArtist artist)
+            {
+                query.ArtistIds = new[] { artist.InternalId };
+            }
+            else
+            {
+                query.Parent = item;
             }
 
-            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            _logger.Info("AudioMuseAI: Received {0} chars from backend for Instant Mix.", json.Length);
-            Console.WriteLine($"AudioMuseAI: Received {json.Length} chars from backend for Instant Mix.");
+            return _libraryManager.GetItemList(query).OfType<Audio>().ToList();
+        }
 
+        private async Task ResolveAndAddItems(string json, User? user, int limit, List<BaseItem> finalItems, HashSet<Guid> finalItemIds)
+        {
             var candidates = new List<(string Id, string Title, string Artist)>();
-             using (var doc = JsonDocument.Parse(json))
-             {
-                 if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                 {
-                     foreach (var el in doc.RootElement.EnumerateArray())
-                     {
-                         var idStr = el.TryGetProperty("item_id", out var idProp) ? idProp.GetString() : null;
-                         if (string.IsNullOrEmpty(idStr) && el.TryGetProperty("Id", out var idProp2)) idStr = idProp2.GetString();
+            using (var doc = JsonDocument.Parse(json))
+            {
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        var idStr = el.TryGetProperty("item_id", out var idProp) ? idProp.GetString() : null;
+                        if (string.IsNullOrEmpty(idStr) && el.TryGetProperty("Id", out var idProp2)) idStr = idProp2.GetString();
 
-                         var title = el.TryGetProperty("title", out var tProp) ? tProp.GetString() : null;
-                         if (string.IsNullOrEmpty(title)) title = el.TryGetProperty("name", out var t2) ? t2.GetString() : null;
-                         if (string.IsNullOrEmpty(title)) title = el.TryGetProperty("Name", out var t3) ? t3.GetString() : null;
+                        var title = el.TryGetProperty("title", out var tProp) ? tProp.GetString() : null;
+                        if (string.IsNullOrEmpty(title)) title = el.TryGetProperty("name", out var t2) ? t2.GetString() : null;
+                        if (string.IsNullOrEmpty(title)) title = el.TryGetProperty("Name", out var t3) ? t3.GetString() : null;
 
-                         var artist = el.TryGetProperty("artist", out var aProp) ? aProp.GetString() : null;
-                         if (string.IsNullOrEmpty(artist)) artist = el.TryGetProperty("Artist", out var a2) ? a2.GetString() : null;
-                         
-                         if (string.IsNullOrEmpty(artist) && el.TryGetProperty("Artists", out var artistsProp) && artistsProp.ValueKind == JsonValueKind.Array)
-                         {
-                             foreach(var a in artistsProp.EnumerateArray()) {
-                                 if (a.ValueKind == JsonValueKind.String) { artist = a.GetString(); break; }
-                                 if (a.ValueKind == JsonValueKind.Object && a.TryGetProperty("Name", out var an)) { artist = an.GetString(); break; }
-                             }
-                         }
+                        var artist = el.TryGetProperty("artist", out var aProp) ? aProp.GetString() : null;
+                        if (string.IsNullOrEmpty(artist)) artist = el.TryGetProperty("Artist", out var a2) ? a2.GetString() : null;
 
-                         if (!string.IsNullOrEmpty(idStr))
-                         {
-                             candidates.Add((idStr, title ?? string.Empty, artist ?? string.Empty));
-                         }
-                     }
-                 }
-             }
+                        if (string.IsNullOrEmpty(artist) && el.TryGetProperty("Artists", out var artistsProp) && artistsProp.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var a in artistsProp.EnumerateArray())
+                            {
+                                if (a.ValueKind == JsonValueKind.String) { artist = a.GetString(); break; }
+                                if (a.ValueKind == JsonValueKind.Object && a.TryGetProperty("Name", out var an)) { artist = an.GetString(); break; }
+                            }
+                        }
 
-            var user = request.UserId != null && Guid.TryParse(request.UserId, out var userId)
-                ? _userManager.GetUserById(userId)
-                : null;
+                        if (!string.IsNullOrEmpty(idStr))
+                        {
+                            candidates.Add((idStr, title ?? string.Empty, artist ?? string.Empty));
+                        }
+                    }
+                }
+            }
 
-            var items = new List<BaseItem>();
+            Console.WriteLine($"AudioMuseAI: Parsed {candidates.Count} similar tracks from backend.");
+
             foreach (var (id, title, artist) in candidates)
             {
-                var item = _libraryManager.GetItemById(id);
-                
+                if (finalItems.Count >= limit) break;
+
+                // Try both Guid and numeric string lookup
+                BaseItem? item = null;
+                if (Guid.TryParse(id, out var guid)) item = _libraryManager.GetItemById(guid);
+                if (item == null) item = _libraryManager.GetItemById(id);
+
                 if (item == null && !string.IsNullOrEmpty(title))
                 {
-                     // Fallback search by title
-                     var query = new InternalItemsQuery(user)
-                     {
-                         SearchTerm = title,
-                         IncludeItemTypes = new[] { "Audio" },
-                         Recursive = true,
-                         Limit = 5
-                     };
-                     
-                     var foundItems = _libraryManager.GetItemList(query);
-                     if (foundItems != null && foundItems.Any())
-                     {
-                         if (!string.IsNullOrEmpty(artist))
-                         {
-                             // Try to match artist
-                             var match = foundItems.FirstOrDefault(i => 
-                                 i is Audio a && a.Artists.Any(ar => ar.Contains(artist, StringComparison.OrdinalIgnoreCase))
-                             );
-                             if (match != null) item = match;
-                             else item = foundItems.FirstOrDefault(); // Use best title match if artist mismatch
-                         }
-                         else
-                         {
-                             item = foundItems.FirstOrDefault();
-                         }
-                         
-                         if (item != null)
-                             _logger.Info("AudioMuseAI: Remapped ID {0} to Emby Item {1} ('{2}') via search.", id, item.Id, item.Name);
-                     }
+                    var query = new InternalItemsQuery
+                    {
+                        User = user,
+                        SearchTerm = title,
+                        IncludeItemTypes = new[] { "Audio" },
+                        Recursive = true,
+                        Limit = 5
+                    };
+
+                    var foundItems = _libraryManager.GetItemList(query);
+                    if (foundItems != null && foundItems.Any())
+                    {
+                        if (!string.IsNullOrEmpty(artist))
+                        {
+                            var match = foundItems.FirstOrDefault(i =>
+                                i is Audio a && a.Artists.Any(ar => ar.Contains(artist, StringComparison.OrdinalIgnoreCase))
+                            );
+                            if (match != null) item = match;
+                            else item = foundItems.FirstOrDefault();
+                        }
+                        else
+                        {
+                            item = foundItems.FirstOrDefault();
+                        }
+                        
+                        if (item != null) Console.WriteLine($"AudioMuseAI: Resolved '{title}' via metadata search.");
+                    }
                 }
 
-                if (item != null && user != null && item.IsVisible(user))
+                if (item != null && !finalItemIds.Contains(item.Id) && (user == null || item.IsVisible(user)))
                 {
-                    items.Add(item);
-                }
-                else if (item != null && user == null)
-                {
-                    items.Add(item);
+                    finalItems.Add(item);
+                    finalItemIds.Add(item.Id);
                 }
             }
+        }
 
-            // Ensure the seed item is at the start of the list
-            var seedItem = _libraryManager.GetItemById(request.Id);
-            if (seedItem != null && (user == null || seedItem.IsVisible(user)))
+        public async Task<object> Get(GetAudioMuseInstantMix request)
+        {
+            try
             {
-                // Remove if it exists elsewhere in the list to avoid duplicates
-                items.RemoveAll(i => i.Id.Equals(seedItem.Id));
-                items.Insert(0, seedItem);
+                Console.WriteLine($">>> AudioMuseAI: InstantMix requested for Item {request.Id} <<<");
+                _logger.Info("AudioMuseAI: Intercepted Instant Mix request for Item {0}", request.Id);
+
+                var user = request.UserId != null && Guid.TryParse(request.UserId, out var userIdVal)
+                    ? _userManager.GetUserById(userIdVal)
+                    : null;
+
+                var originalItem = _libraryManager.GetItemById(request.Id);
+                if (originalItem == null)
+                {
+                    Console.WriteLine($"AudioMuseAI: Error - Item {request.Id} not found in library.");
+                    return new QueryResult<BaseItemDto>();
+                }
+
+                Console.WriteLine($"AudioMuseAI: Original Item is '{originalItem.Name}' (Type: {originalItem.GetType().Name}, InternalId: {originalItem.InternalId})");
+
+                var resultLimit = request.Limit ?? 50;
+                var finalItems = new List<BaseItem>();
+                var finalItemIds = new HashSet<Guid>();
+
+                BaseItem? initialSong = null;
+                var seedSongs = new List<Audio>();
+
+                if (originalItem is Audio song)
+                {
+                    initialSong = song;
+                    seedSongs.Add(song);
+                }
+                else if (originalItem is MusicAlbum album)
+                {
+                    var songs = GetSongs(album, user);
+                    if (songs.Any())
+                    {
+                        initialSong = songs.OrderBy(_ => Guid.NewGuid()).First();
+                        seedSongs = songs.OrderBy(_ => Guid.NewGuid()).ToList();
+                    }
+                }
+                else if (originalItem is MusicArtist artist || originalItem.GetType().Name.Contains("Artist"))
+                {
+                    var songs = GetSongs(originalItem, user);
+                    if (songs.Any())
+                    {
+                        initialSong = songs.OrderBy(_ => Guid.NewGuid()).First();
+                        seedSongs = songs.OrderBy(_ => Guid.NewGuid()).Take(20).ToList();
+                    }
+                }
+                else if (originalItem.GetType().Name.Contains("Playlist") || originalItem is Folder)
+                {
+                    var songs = GetSongs(originalItem, user);
+                    if (songs.Any())
+                    {
+                        initialSong = songs.OrderBy(_ => Guid.NewGuid()).First();
+                        seedSongs = songs.OrderBy(_ => Guid.NewGuid()).Take(20).ToList();
+                    }
+                }
+
+                if (initialSong != null)
+                {
+                    finalItems.Add(initialSong);
+                    finalItemIds.Add(initialSong.Id);
+                }
+
+                if (seedSongs.Any() && finalItems.Count < resultLimit)
+                {
+                    var remainingNeeded = resultLimit - finalItems.Count;
+                    var songsToFetchPerSeed = (int)Math.Ceiling((decimal)remainingNeeded / seedSongs.Count);
+                    if (seedSongs.Count > 1) songsToFetchPerSeed *= 2;
+
+                    foreach (var seed in seedSongs)
+                    {
+                        if (finalItems.Count >= resultLimit) break;
+
+                        try
+                        {
+                            // Use original numeric ID for the first seed if it matches the request
+                            string backendId = (seed.Id == originalItem.Id) ? request.Id : seed.InternalId.ToString();
+
+                            Console.WriteLine($"AudioMuseAI: Requesting similar tracks for seed '{seed.Name}' (ID: {backendId})...");
+                            var response = await _audioMuseService.GetSimilarTracksAsync(backendId, null, null, songsToFetchPerSeed, null, CancellationToken.None).ConfigureAwait(false);
+                            if (response != null && response.IsSuccessStatusCode)
+                            {
+                                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                                await ResolveAndAddItems(json, user, resultLimit, finalItems, finalItemIds);
+                            }
+                            else
+                            {
+                                Console.WriteLine($"AudioMuseAI: Backend error {response?.StatusCode} for seed {seed.Name}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error("AudioMuseAI: Error fetching similar tracks for seed {0}: {1}", seed.Id, ex.Message);
+                            Console.WriteLine($"AudioMuseAI: Exception during backend call for {seed.Name}: {ex.Message}");
+                        }
+                    }
+                }
+
+                // Fallback: If still empty or very short, add some random items but only as a last resort
+                if (finalItems.Count < 5)
+                {
+                    Console.WriteLine($"AudioMuseAI: Results extremely low ({finalItems.Count}). Adding random library tracks as fallback.");
+                    var fallbackQuery = new InternalItemsQuery
+                    {
+                        User = user,
+                        IncludeItemTypes = new[] { "Audio" },
+                        Recursive = true,
+                        Limit = resultLimit - finalItems.Count
+                    };
+                    var fallbackSongs = _libraryManager.GetItemList(fallbackQuery);
+                    foreach (var s in fallbackSongs.OrderBy(_ => Guid.NewGuid()))
+                    {
+                        if (finalItems.Count < resultLimit && finalItemIds.Add(s.Id))
+                        {
+                            finalItems.Add(s);
+                        }
+                    }
+                }
+
+                var dtos = _dtoService.GetBaseItemDtos(finalItems.ToArray(), new DtoOptions { EnableImages = true }, user);
+                Console.WriteLine($"AudioMuseAI: Returning {dtos.Length} items for Instant Mix.");
+                return new QueryResult<BaseItemDto> { Items = dtos, TotalRecordCount = dtos.Length };
             }
-
-            var dtos = _dtoService.GetBaseItemDtos(items.ToArray(), new DtoOptions { EnableImages = true }, user);
-
-            _logger.Info("AudioMuseAI: Returning {0} items for Instant Mix.", dtos.Length);
-            Console.WriteLine($"AudioMuseAI: Returning {dtos.Length} items for Instant Mix.");
-            return new QueryResult<BaseItemDto>
+            catch (Exception ex)
             {
-                Items = dtos,
-                TotalRecordCount = dtos.Length
-            };
+                Console.WriteLine($"AudioMuseAI: CRITICAL FAILURE in Get(GetAudioMuseInstantMix): {ex}");
+                _logger.Error("AudioMuseAI: CRITICAL FAILURE in Get(GetAudioMuseInstantMix). {0}", ex);
+                return new QueryResult<BaseItemDto>();
+            }
         }
 
         public object Get(GetInfo request)

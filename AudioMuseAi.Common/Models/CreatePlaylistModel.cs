@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Jellyfin.Plugin.AudioMuseAi.Models
+namespace AudioMuseAi.Common.Models
 {
     /// <summary>
     /// Model for the create playlist request body.
@@ -21,3 +21,4 @@ namespace Jellyfin.Plugin.AudioMuseAi.Models
         public IEnumerable<string>? track_ids { get; set; }
     }
 }
+

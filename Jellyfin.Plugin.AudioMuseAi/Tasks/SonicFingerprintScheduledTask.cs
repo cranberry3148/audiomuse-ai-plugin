@@ -5,8 +5,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using AudioMuseAi.Common.Services;
 using Jellyfin.Data.Enums;
-using Jellyfin.Plugin.AudioMuseAi.Services;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Entities;
@@ -60,13 +60,13 @@ namespace Jellyfin.Plugin.AudioMuseAi.Tasks
             IUserManager userManager,
             IPlaylistManager playlistManager,
             ILibraryManager libraryManager,
-            System.Net.Http.IHttpClientFactory httpClientFactory)
+            IAudioMuseService audioMuseService)
         {
             _logger = logger;
             _userManager = userManager;
             _playlistManager = playlistManager;
             _libraryManager = libraryManager;
-            _audioMuseService = new AudioMuseService(httpClientFactory);
+            _audioMuseService = audioMuseService;
         }
 
         /// <inheritdoc />

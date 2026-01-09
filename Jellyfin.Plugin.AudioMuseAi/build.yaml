@@ -10,5 +10,6 @@ category: "General"
 imageUrl: "https://raw.githubusercontent.com/NeptuneHub/audiomuse-ai-plugin/master/audiomuseai.png"
 artifacts:
   - "Jellyfin.Plugin.AudioMuseAi.dll"
+  - "AudioMuseAi.Common.dll"
   - "audiomuseai.png"
 changelog: changelog

@@ -3,9 +3,8 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Jellyfin.Plugin.AudioMuseAi.Models;
-using Jellyfin.Plugin.AudioMuseAi.Services;
-using System.Net.Http;
+using AudioMuseAi.Common.Models;
+using AudioMuseAi.Common.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 
@@ -19,16 +18,13 @@ namespace Jellyfin.Plugin.AudioMuseAi.Controller
     public class AudioMuseController : ControllerBase
     {
         private readonly IAudioMuseService _svc;
-        private readonly IHttpClientFactory _httpClientFactory;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AudioMuseController"/> class.
         /// </summary>
-        /// <param name="httpClientFactory">The HTTP client factory.</param>
-        public AudioMuseController(IHttpClientFactory httpClientFactory)
+        public AudioMuseController(IAudioMuseService svc)
         {
-            _httpClientFactory = httpClientFactory;
-            _svc = new AudioMuseService(httpClientFactory);
+            _svc = svc;
         }
 
         /// <summary>
@@ -82,51 +78,6 @@ namespace Jellyfin.Plugin.AudioMuseAi.Controller
             return resp.IsSuccessStatusCode
                 ? Ok()
                 : StatusCode((int)resp.StatusCode);
-        }
-
-        /// <summary>
-        /// Tests connection to a specific backend URL.
-        /// </summary>
-        /// <param name="backendUrl">The backend URL to test.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>An <see cref="IActionResult"/> with the test result.</returns>
-        [HttpPost("test_connection")]
-        public async Task<IActionResult> TestConnection([FromBody] string backendUrl, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(backendUrl))
-            {
-                return BadRequest(new { success = false, message = "Backend URL is required." });
-            }
-
-            try
-            {
-                // Use the host-provided/factory-created HttpClient with proper TLS/proxy configuration
-                var client = _httpClientFactory.CreateClient();
-                var trimmed = backendUrl.TrimEnd('/');
-                client.BaseAddress = new System.Uri(trimmed);
-                var resp = await client.GetAsync("/api/active_tasks", cancellationToken).ConfigureAwait(false);
-
-                if (resp.IsSuccessStatusCode)
-                {
-                    return Ok(new { success = true, message = "✓ Connection successful!" });
-                }
-                else
-                {
-                    return StatusCode(502, new { success = false, message = $"✗ Backend returned: {resp.StatusCode}" });
-                }
-            }
-            catch (System.ArgumentException ex)
-            {
-                return BadRequest(new { success = false, message = $"Invalid URL: {ex.Message}" });
-            }
-            catch (System.Net.Http.HttpRequestException ex)
-            {
-                return StatusCode(503, new { success = false, message = $"Connection failed: {ex.Message}" });
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
-            }
         }
 
         /// <summary>

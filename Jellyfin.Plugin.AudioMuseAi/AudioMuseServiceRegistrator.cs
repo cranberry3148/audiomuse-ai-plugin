@@ -1,3 +1,4 @@
+using AudioMuseAi.Common.Services;
 using Jellyfin.Plugin.AudioMuseAi.Controller;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -14,6 +15,11 @@ namespace Jellyfin.Plugin.AudioMuseAi
         /// <inheritdoc />
         public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
         {
+            serviceCollection.AddHttpClient<IAudioMuseService, AudioMuseService>((_, client) =>
+            {
+                client.BaseAddress = new System.Uri(Services.AudioMuseBackendUrl.Get());
+            });
+
             // Register our convention to disable the default Instant Mix controller.
             serviceCollection.AddSingleton<IControllerModelConvention, AudioMuseControllerConvention>();
 

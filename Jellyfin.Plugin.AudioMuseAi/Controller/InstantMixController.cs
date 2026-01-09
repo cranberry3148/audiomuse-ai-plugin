@@ -4,9 +4,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using AudioMuseAi.Common.Services;
 using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
-using Jellyfin.Plugin.AudioMuseAi.Services;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
@@ -41,14 +41,14 @@ namespace Jellyfin.Plugin.AudioMuseAi.Controller
             IUserManager userManager,
             IDtoService dtoService,
             IMusicManager musicManager,
-            System.Net.Http.IHttpClientFactory httpClientFactory)
+            IAudioMuseService audioMuseService)
         {
             _logger = logger;
             _libraryManager = libraryManager;
             _userManager = userManager;
             _dtoService = dtoService;
             _musicManager = musicManager;
-            _audioMuseService = new AudioMuseService(httpClientFactory);
+            _audioMuseService = audioMuseService;
         }
 
         /// <summary>

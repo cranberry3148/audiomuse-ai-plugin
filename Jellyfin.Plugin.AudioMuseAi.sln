@@ -1,6 +1,10 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-#
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.Plugin.AudioMuseAi", "Jellyfin.Plugin.AudioMuseAi\Jellyfin.Plugin.AudioMuseAi.csproj", "{D921B930-CF91-406F-ACBC-08914DCD0D34}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioMuseAi.Common", "AudioMuseAi.Common\AudioMuseAi.Common.csproj", "{60F0E56B-D431-4993-B58F-DEE50C857665}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emby.Plugin.AudioMuseAi", "Emby.Plugin.AudioMuseAi\Emby.Plugin.AudioMuseAi.csproj", "{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,5 +28,32 @@ Global
 		{D921B930-CF91-406F-ACBC-08914DCD0D34}.Release|x64.Build.0 = Release|Any CPU
 		{D921B930-CF91-406F-ACBC-08914DCD0D34}.Release|x86.ActiveCfg = Release|Any CPU
 		{D921B930-CF91-406F-ACBC-08914DCD0D34}.Release|x86.Build.0 = Release|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Debug|x64.Build.0 = Debug|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Debug|x86.Build.0 = Debug|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Release|x64.ActiveCfg = Release|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Release|x64.Build.0 = Release|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Release|x86.ActiveCfg = Release|Any CPU
+		{60F0E56B-D431-4993-B58F-DEE50C857665}.Release|x86.Build.0 = Release|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Debug|x64.Build.0 = Debug|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Debug|x86.Build.0 = Debug|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Release|x64.ActiveCfg = Release|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Release|x64.Build.0 = Release|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Release|x86.ActiveCfg = Release|Any CPU
+		{5AE002E7-BBDC-4669-8CAA-6E37BD9EB662}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

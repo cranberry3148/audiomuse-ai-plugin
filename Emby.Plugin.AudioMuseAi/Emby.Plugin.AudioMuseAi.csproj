@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Compile Include="..\AudioMuseAi.Common\**\*.cs" Exclude="..\AudioMuseAi.Common\obj\**;..\AudioMuseAi.Common\bin\**" LinkBase="Common" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.90" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reuse the Jellyfin config page UI (works in both UIs for basic config). -->
+    <EmbeddedResource Include="..\Jellyfin.Plugin.AudioMuseAi\Configuration\configPage.html" Link="Configuration\configPage.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\Jellyfin.Plugin.AudioMuseAi\audiomuseai.png" Link="audiomuseai.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  
+</Project>

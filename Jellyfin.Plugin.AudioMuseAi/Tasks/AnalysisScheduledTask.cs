@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Jellyfin.Plugin.AudioMuseAi.Services;
+using AudioMuseAi.Common.Services;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -21,11 +21,11 @@ namespace Jellyfin.Plugin.AudioMuseAi.Tasks
         /// Initializes a new instance of the <see cref="AnalysisScheduledTask"/> class.
         /// </summary>
         /// <param name="logger">The logger.</param>
-        /// <param name="httpClientFactory">The HTTP client factory.</param>
-        public AnalysisScheduledTask(ILogger<AnalysisScheduledTask> logger, System.Net.Http.IHttpClientFactory httpClientFactory)
+        /// <param name="audioMuseService">The AudioMuse service.</param>
+        public AnalysisScheduledTask(ILogger<AnalysisScheduledTask> logger, IAudioMuseService audioMuseService)
         {
             _logger = logger;
-            _audioMuseService = new AudioMuseService(httpClientFactory);
+            _audioMuseService = audioMuseService;
         }
 
         /// <inheritdoc />
